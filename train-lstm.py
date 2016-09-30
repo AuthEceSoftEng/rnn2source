@@ -38,7 +38,7 @@ checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1)
 
 model = Sequential()
 model.add(LSTM(128, activation='tanh', input_shape=(seq_length, vocab_size), return_sequences=True, forget_bias_init='one'))
-model.add(LSTM(vocab_size))
+model.add(LSTM(128))
 model.add(Dense(vocab_size, activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -52,7 +52,7 @@ def sample(preds, temperature=0.35):
     return np.argmax(probas)
 
 # train the model, output generated text after each iteration
-for iteration in range(1, 60):
+for iteration in range(1, 100):
     print()
     print('-' * 50)
     print('Iteration', iteration)
