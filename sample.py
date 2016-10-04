@@ -5,6 +5,8 @@ import sys
 
 from keras.models import load_model
 
+from utils import sample
+
 parser = argparse.ArgumentParser(description='Sample a trained model')
 parser.add_argument('filepath', help='filepath to model')
 parser.add_argument('seed', help='seed input')

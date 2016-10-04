@@ -1,4 +1,3 @@
-import numpy as np
 import random
 import sys
 
@@ -7,18 +6,17 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.models import Sequential
 
-import jsparser
-from utils import sample
+from utils import *
 
 # data I/O
-data = jsparser('~/Documents/projects')
+data = jsparser('/home/vasilis/Documents/projects')
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
 char_to_ix = {ch: i for i, ch in enumerate(chars)}
 ix_to_char = {i: ch for i, ch in enumerate(chars)}
 seq_length = 50
-step = 3    # step used to create semi redundant arrays of information
+step = 25  # step used to create semi redundant arrays of information
 
 inputs = []
 target = []
@@ -34,6 +32,7 @@ for i, sentence in enumerate(inputs):
     for t, char in enumerate(sentence):
         X[i, t, char_to_ix[char]] = 1
     y[i, char_to_ix[target[i]]] = 1
+del inputs, target
 
 # define the checkpoint
 filepath = "data/results/weights-improvement-{loss:.4f}.hdf5"
