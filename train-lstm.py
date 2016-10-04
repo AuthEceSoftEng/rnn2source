@@ -1,14 +1,17 @@
-from keras.models import Sequential
-from keras.layers import Dense, Activation, Dropout
-from keras.layers import LSTM
-from keras.callbacks import ModelCheckpoint
 import numpy as np
 import random
 import sys
-import h5py
+
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Dense
+from keras.layers import LSTM
+from keras.models import Sequential
+
+import jsparser
+from utils import sample
 
 # data I/O
-data = open('data/input.txt', 'r').read()  # should be simple plain text file
+data = jsparser('~/Documents/projects')
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
@@ -41,15 +44,6 @@ model.add(LSTM(128, activation='tanh', input_shape=(seq_length, vocab_size), ret
 model.add(LSTM(128))
 model.add(Dense(vocab_size, activation='softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
-
-def sample(preds, temperature=0.35):
-    # helper function to sample an index from a probability array
-    preds = np.asarray(preds).astype('float64')
-    preds = np.log(preds) / temperature
-    exp_preds = np.exp(preds)
-    preds = exp_preds / np.sum(exp_preds)
-    probas = np.random.multinomial(1, preds, 1)
-    return np.argmax(probas)
 
 # train the model, output generated text after each iteration
 for iteration in range(1, 100):
@@ -84,4 +78,3 @@ for iteration in range(1, 100):
 
             sys.stdout.write(next_char)
             sys.stdout.flush()
-print()
