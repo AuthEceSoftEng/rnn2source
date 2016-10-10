@@ -23,11 +23,11 @@ target = []
 for i in range(0, data_size - seq_length, step):
     inputs.append(data[i: i + seq_length])
     target.append(data[i + seq_length])
-print('Number of samples:', len(inputs))
+print('Number of samples:', len(inputs), type(inputs[1]), inputs[1])
 
 print('Vectorization...')
-X = np.zeros((len(inputs), seq_length, len(chars)), dtype=np.bool)
-y = np.zeros((len(inputs), len(chars)), dtype=np.bool)
+X = np.zeros((len(inputs), seq_length, vocab_size), dtype=np.bool)
+y = np.zeros((len(inputs), vocab_size), dtype=np.bool)
 for i, sentence in enumerate(inputs):
     for t, char in enumerate(sentence):
         X[i, t, char_to_ix[char]] = 1
@@ -35,7 +35,7 @@ for i, sentence in enumerate(inputs):
 del inputs, target
 
 # define the checkpoint
-filepath = "data/results/weights-improvement-{loss:.4f}.hdf5"
+filepath = "data/results/notredund-weights-{loss:.4f}.hdf5"
 checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1)
 
 model = Sequential()
@@ -49,7 +49,7 @@ for iteration in range(1, 100):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(X, y, batch_size=128, nb_epoch=1, callbacks=[checkpoint])
+    model.fit(X, y, batch_size=256, nb_epoch=1, callbacks=[checkpoint])
 
     start_index = random.randint(0, data_size - seq_length - 1)
 

@@ -5,7 +5,7 @@ import sys
 
 from keras.models import load_model
 
-from utils import sample
+from utils import jsparser, sample
 
 parser = argparse.ArgumentParser(description='Sample a trained model')
 parser.add_argument('filepath', help='filepath to model')
@@ -25,7 +25,7 @@ print model.get_weights()[0]
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 # data I/O
-data = open('/home/vasilis/PycharmProjects/lstm-keras/data/input.txt', 'r').read()  # should be simple plain text file
+data = jsparser('/home/vasilis/Documents/projects')
 chars = list(set(data))
 data_size, vocab_size = len(data), len(chars)
 print 'data has %d characters, %d unique.' % (data_size, vocab_size)
