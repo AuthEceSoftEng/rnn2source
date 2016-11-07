@@ -43,6 +43,7 @@ model.add(TimeDistributed(Dense(vocab_size, activation='softmax')))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 # train the model, output generated text after each iteration
+
 for iteration in range(100):
     print()
     print('-' * 50)
@@ -53,4 +54,4 @@ for iteration in range(100):
         print iteration, i, loss
 
         if i % 1000 == 0:
-            model.save('data/results/stateful-%d-%f)' % (iteration, loss))
+            model.save('data/results/stateful-Dropout-%d-%f)' % (iteration, loss))

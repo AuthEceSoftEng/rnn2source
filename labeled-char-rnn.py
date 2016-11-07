@@ -22,4 +22,5 @@ char_output = TimeDistributed(Dense(vocab_size, activation='softmax'), name='cha
 label_output = TimeDistributed(Dense(label_size, activation='softmax'), name='label_output')(lstm_layer)
 
 model = Model([char_input, label_input], [char_output, label_output])
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 model.summary()
