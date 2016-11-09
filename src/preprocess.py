@@ -28,7 +28,7 @@ for root, dirs, files in os.walk(path, topdown=True):
                     minidata = '\xff' + jsmin(data) + '\xfe'
                     if minidata not in minified_data:
                         filecounter += 1
-                        labels = []
+                        labels = ''
                         for token in point.get_tokens(minidata):
                             (type, seq) = token
                             if type == Token.Literal.String.Regex:
@@ -49,10 +49,14 @@ for root, dirs, files in os.walk(path, topdown=True):
                                 tag = 'e'  # others
 
                             for i in range(len(seq)):
-                                labels.append(tag)
-                        print filecounter
-                        minified_data.append(minidata)
-                        label_data.append(labels)
+                                if not len(labels) == len(minidata):
+                                    labels += tag
+                        # print len(labels)
+                        # print len(minidata)
+                        if len(labels) == len(minidata):
+                            minified_data.append(minidata)
+                            label_data.append(labels)
+
 
 with open('chars', 'wb') as f:
     pickle.dump(minified_data, f)
