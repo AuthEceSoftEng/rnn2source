@@ -51,8 +51,6 @@ for root, dirs, files in os.walk(path, topdown=True):
                             for i in range(len(seq)):
                                 if not len(labels) == len(minidata):
                                     labels += tag
-                        # print len(labels)
-                        # print len(minidata)
                         if len(labels) == len(minidata):
                             minified_data.append(minidata)
                             label_data.append(labels)
