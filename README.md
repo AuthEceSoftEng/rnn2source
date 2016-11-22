@@ -18,7 +18,7 @@ As deep Recurrent Neural Networks are very expensive computationally you are adv
 
 [Using Theano with the GPU](http://deeplearning.net/software/theano/tutorial/using_gpu.html)
 
-Various libraries are used to manipulate & evaluate the source code. If you have [pip] installed you can try installing them with a single command:
+Various libraries are used to manipulate & evaluate the source code. If you have [pip](https://pip.pypa.io/en/stable/installing/) installed you can try installing them with a single command:
 
 ```
 pip install -r requirements.txt
