@@ -2,6 +2,7 @@
 This code implements javascript source code generation using deep recurrent neural networks with LSTM cells. Currently 2 approaches are available:
 
 - Character level learning
+
 This approach is based on Andrej Karpathy's [char-rnn](http://karpathy.github.io/2015/05/21/rnn-effectiveness/). It is modified to work with javascript repositories.
 
 - Labeled Character learning
