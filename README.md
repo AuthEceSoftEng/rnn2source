@@ -25,6 +25,23 @@ pip install -r requirements.txt
 ```
 
 # Usage
+## Preprocessing
+
+Creating the datasets is handled by ```preprocess.py```. It takes one the path to the JS projects as argument. It minifies, tags & shuffles the source code. Produced datasets are placed in ```data/input```.
+
+```bash
+python preprocess.py [path to root directory of projects]
+```
+
+## Training
+To train the model you can call each implementation's script. The training scripts take one optional argument in case you want to start training from a previously trained model
++ Character:
+``` python char-rnn.py [-r] [filepath to previous model]```
+
++ Labeled Character: 
+``` python labeled-char-rnn [-r] [filepath to previous model]```
+
+## Sampling
 
 # Licence
 MIT
