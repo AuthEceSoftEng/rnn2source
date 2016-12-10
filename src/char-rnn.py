@@ -22,7 +22,7 @@ LSTM_SIZE = 256
 LAYERS = 3
 
 
-def read_batches(text, ):
+def read_batches(text):
     T = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
 
     X = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
@@ -69,9 +69,9 @@ test_model = build_model(infer=True)
 print '... done'
 
 
-def sample(epoch, loss, sample_chars=256, primer_text='And the '):
+def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the '):
     test_model.reset_states()
-    test_model.load_weights('data/results/keras_char_rnn_rmsprop-{%d}-{%f}h5' % (epoch, loss))
+    test_model.load_weights('data/results/keras_char_rnn_rmsprop-{%d}-{%f}h5' % (epoch, train_loss, test_loss))
     sampled = [char_to_idx[c] for c in primer_text]
 
     for c in primer_text:
@@ -90,21 +90,24 @@ def sample(epoch, loss, sample_chars=256, primer_text='And the '):
 
 
 print training_model.summary()
-total_loss = 0
+avg_train_loss = 0
+avg_test_loss = 0
+
 for epoch in range(100):
-    prev_loss = total_loss
+    prev_loss = avg_train_loss
     total_loss = 0
     for i, (x, y) in enumerate(read_batches(text)):
-        t1 = time.time()
         loss = training_model.train_on_batch(x, y)
-        t2 = time.time()
-        print 'Took it: %f ms' % ((t2 - t1) * 1000.)
-        total_loss += loss
-        print loss
+        avg_train_loss += loss
 
-        if (i % 1000 == 0) or (i == (BATCH_CHARS / SEQ_LEN - 1)):
-            # training_model.save_weights('data/results/keras_char_rnn_rmsprop-{%d}-{%f}h5' % (epoch, loss))
-            # sample(epoch, loss)
+    if (prev_loss - total_loss) < 0.001:
+        print 'Warning: Early stopping advised.'
+
+    for i, (x, y) in enumerate(read_batches(someothertext)):
+        loss = training_model.test_on_batch(x, y)
+        avg_test_loss += loss
+
+
+    training_model.save_weights('../data/results/run8-%d-%f-%f' % (epoch, avg_train_loss, avg_test_loss))
+    sample(epoch, avg_train_loss, avg_test_loss)
             print (total_loss / (i + 1))
-            if (prev_loss - total_loss) < 0.001:
-                print 'earlystopping!'
