@@ -1,39 +1,47 @@
 import numpy as np
 import pickle
-import time
+import logging
 
-from keras.layers.core import Activation, Dropout, TimeDistributedDense
-from keras.layers.recurrent import LSTM
+from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM
 from keras.models import Sequential
+from keras.optimizers import RMSprop, Adam
+from math import ceil
 
-with open('chars', 'rb') as f:
-    minified_data = pickle.load(f)
-text = ''.join(minified_data)
-char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(text))))}
-idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
-vocab_size = len(char_to_idx)
+# Logger init
+logging.basicConfig(filename='/home/vasilis/Dropbox/My stuff/Thesis/logs/rnn.log', level=logging.INFO)
 
-print 'Working on %d characters (%d unique)' % (len(text), vocab_size)
-
+# Hyperparameters
 SEQ_LEN = 50
-BATCH_SIZE = 100
-BATCH_CHARS = len(text) / BATCH_SIZE
+BATCH_SIZE = 200
 LSTM_SIZE = 256
 LAYERS = 3
+NUM_EPOCHS = 1
+
+# Data loading
+with open('../data/chars', 'rb') as f:
+    minified_data = pickle.load(f)
+
+splitPoint = int(ceil(len(minified_data) * 0.95))
+train_data = ''.join(minified_data[:splitPoint])
+test_data = ''.join(minified_data[splitPoint:])
+char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_data))))}
+idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
+vocab_size = len(char_to_idx)
+print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vocab_size)
 
 
-def read_batches(text):
+def batch_generator(text):
     T = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
-
     X = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
     Y = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
+    batch_chars = len(text)/BATCH_SIZE
 
-    for i in range(0, BATCH_CHARS - SEQ_LEN - 1, SEQ_LEN):
+    for i in range(0, batch_chars - SEQ_LEN - 1, SEQ_LEN):
 
         X[:] = 0
         Y[:] = 0
         for batch_idx in range(BATCH_SIZE):
-            start = batch_idx * BATCH_CHARS + i
+            start = batch_idx * batch_chars + i
             for j in range(SEQ_LEN):
                 X[batch_idx, j, T[start + j]] = 1
                 Y[batch_idx, j, T[start + j + 1]] = 1
@@ -57,21 +65,22 @@ def build_model(infer):
         model.add(LSTM(LSTM_SIZE, return_sequences=True, stateful=True))
         model.add(Dropout(0.2))
 
-    model.add(TimeDistributedDense(vocab_size))
+    model.add(TimeDistributed(Dense(vocab_size)))
     model.add(Activation('softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    rms = RMSprop(clipvalue=0.5, lr=0.02)
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
     return model
 
 
 print 'Building model.'
 training_model = build_model(infer=False)
 test_model = build_model(infer=True)
-print '... done'
-
+print '... done.'
+# print training_model.summary()
 
 def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the '):
     test_model.reset_states()
-    test_model.load_weights('data/results/keras_char_rnn_rmsprop-{%d}-{%f}h5' % (epoch, train_loss, test_loss))
+    test_model.load_weights('data/results/k../data/results/run8-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
     sampled = [char_to_idx[c] for c in primer_text]
 
     for c in primer_text:
@@ -88,26 +97,33 @@ def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the 
 
     print ''.join([idx_to_char[c] for c in sampled])
 
-
-print training_model.summary()
 avg_train_loss = 0
+avg_train_acc = 0
 avg_test_loss = 0
-
-for epoch in range(100):
-    prev_loss = avg_train_loss
-    total_loss = 0
-    for i, (x, y) in enumerate(read_batches(text)):
-        loss = training_model.train_on_batch(x, y)
+avg_test_acc = 0
+prev_loss = 1
+for epoch in range(NUM_EPOCHS):
+    for i, (x, y) in enumerate(batch_generator(train_data)):
+        loss, accuracy = training_model.train_on_batch(x, y)
         avg_train_loss += loss
+        avg_train_acc += accuracy
+    avg_train_loss /= (i + 1)
+    avg_train_acc /= (i + 1)
 
-    if (prev_loss - total_loss) < 0.001:
-        print 'Warning: Early stopping advised.'
-
-    for i, (x, y) in enumerate(read_batches(someothertext)):
-        loss = training_model.test_on_batch(x, y)
+    for i, (x, y) in enumerate(batch_generator(test_data)):
+        loss, accuracy = training_model.test_on_batch(x, y)
         avg_test_loss += loss
+        avg_test_acc += accuracy
+    avg_test_loss /= (i + 1)
+    avg_test_acc /= (i + 1)
 
-
-    training_model.save_weights('../data/results/run8-%d-%f-%f' % (epoch, avg_train_loss, avg_test_loss))
+    training_model.save_weights('../data/results/run8-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
+    print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
+    logging.info('Epoch: %d\nAvg train loss: %f\tAvg test loss: %f\tAvg train acc: %f \tAvg test acc: %f',
+                 epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
     sample(epoch, avg_train_loss, avg_test_loss)
-            print (total_loss / (i + 1))
+
+    if (prev_loss - avg_train_loss) < 0.001:
+        print 'Warning: Early stopping advised.'
+        logging.warning('Warning: Early stopping advised.')
+    prev_loss = avg_train_loss
