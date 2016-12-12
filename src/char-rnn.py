@@ -13,9 +13,9 @@ logging.basicConfig(filename='/home/vasilis/Dropbox/My stuff/Thesis/logs/rnn.log
 # Hyperparameters
 SEQ_LEN = 50
 BATCH_SIZE = 200
-LSTM_SIZE = 256
+LSTM_SIZE = 512
 LAYERS = 3
-NUM_EPOCHS = 1
+NUM_EPOCHS = 40
 
 # Data loading
 with open('../data/chars', 'rb') as f:
@@ -67,8 +67,8 @@ def build_model(infer):
 
     model.add(TimeDistributed(Dense(vocab_size)))
     model.add(Activation('softmax'))
-    rms = RMSprop(clipvalue=0.5, lr=0.02)
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+    rms = RMSprop(clipvalue=0.5, lr=0.002)
+    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
     return model
 
 
@@ -80,7 +80,7 @@ print '... done.'
 
 def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the '):
     test_model.reset_states()
-    test_model.load_weights('data/results/k../data/results/run8-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
+    test_model.load_weights('../data/results/run10-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
     sampled = [char_to_idx[c] for c in primer_text]
 
     for c in primer_text:
@@ -117,7 +117,7 @@ for epoch in range(NUM_EPOCHS):
     avg_test_loss /= (i + 1)
     avg_test_acc /= (i + 1)
 
-    training_model.save_weights('../data/results/run8-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
+    training_model.save_weights('../data/results/run10-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
     print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
     logging.info('Epoch: %d\nAvg train loss: %f\tAvg test loss: %f\tAvg train acc: %f \tAvg test acc: %f',
                  epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
