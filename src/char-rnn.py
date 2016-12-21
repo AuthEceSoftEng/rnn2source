@@ -31,21 +31,21 @@ print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vo
 
 
 def batch_generator(text):
-    T = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
-    X = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
-    Y = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
-    batch_chars = len(text)/BATCH_SIZE
+    t = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
+    x = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
+    y = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
+    batch_chars = len(text) / BATCH_SIZE
 
     for i in range(0, batch_chars - SEQ_LEN - 1, SEQ_LEN):
 
-        X[:] = 0
-        Y[:] = 0
+        x[:] = 0
+        y[:] = 0
         for batch_idx in range(BATCH_SIZE):
             start = batch_idx * batch_chars + i
             for j in range(SEQ_LEN):
-                X[batch_idx, j, T[start + j]] = 1
-                Y[batch_idx, j, T[start + j + 1]] = 1
-        yield X, Y
+                x[batch_idx, j, t[start + j]] = 1
+                y[batch_idx, j, t[start + j + 1]] = 1
+        yield x, y
 
 
 def build_model(infer):
@@ -67,8 +67,8 @@ def build_model(infer):
 
     model.add(TimeDistributed(Dense(vocab_size)))
     model.add(Activation('softmax'))
-    rms = RMSprop(clipvalue=0.5, lr=0.002)
-    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
+    rms = RMSprop(clipvalue=5, lr=0.002)
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
 
@@ -78,9 +78,10 @@ test_model = build_model(infer=True)
 print '... done.'
 # print training_model.summary()
 
+
 def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the '):
     test_model.reset_states()
-    test_model.load_weights('../data/results/run10-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
+    test_model.load_weights('../data/results/run12-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
     sampled = [char_to_idx[c] for c in primer_text]
 
     for c in primer_text:
@@ -97,13 +98,25 @@ def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the 
 
     print ''.join([idx_to_char[c] for c in sampled])
 
+starting_epoch = 0
 avg_train_loss = 0
 avg_train_acc = 0
 avg_test_loss = 0
 avg_test_acc = 0
-prev_loss = 1
-for epoch in range(NUM_EPOCHS):
+prev_loss = 5
+
+recovery = False
+if recovery:
+    starting_epoch = 9
+    avg_train_loss = 1.095104
+    avg_test_loss = 0.891405
+    training_model.load_weights('../data/results/run12-%d-%f-%f.h5' % (starting_epoch, avg_train_loss, avg_test_loss))
+
+
+for epoch in range((starting_epoch + 1), NUM_EPOCHS):
     for i, (x, y) in enumerate(batch_generator(train_data)):
+        if i % 200:
+            training_model.reset_states()
         loss, accuracy = training_model.train_on_batch(x, y)
         avg_train_loss += loss
         avg_train_acc += accuracy
@@ -117,7 +130,7 @@ for epoch in range(NUM_EPOCHS):
     avg_test_loss /= (i + 1)
     avg_test_acc /= (i + 1)
 
-    training_model.save_weights('../data/results/run10-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
+    training_model.save_weights('../data/results/run12-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
     print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
     logging.info('Epoch: %d\nAvg train loss: %f\tAvg test loss: %f\tAvg train acc: %f \tAvg test acc: %f',
                  epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
