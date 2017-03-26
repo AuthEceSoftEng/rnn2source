@@ -1,51 +1,31 @@
 import numpy as np
 import pickle
 import logging
+import argparse
+import time
 
 from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM
 from keras.models import Sequential
-from keras.optimizers import RMSprop, Adam
-from math import ceil
-
-# Logger init
-logging.basicConfig(filename='/home/vasilis/Dropbox/My stuff/Thesis/logs/rnn.log', level=logging.INFO)
-
-# Hyperparameters
-SEQ_LEN = 50
-BATCH_SIZE = 200
-LSTM_SIZE = 512
-LAYERS = 3
-NUM_EPOCHS = 40
-
-# Data loading
-with open('../data/chars', 'rb') as f:
-    minified_data = pickle.load(f)
-
-splitPoint = int(ceil(len(minified_data) * 0.95))
-train_data = ''.join(minified_data[:splitPoint])
-test_data = ''.join(minified_data[splitPoint:])
-char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_data))))}
-idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
-vocab_size = len(char_to_idx)
-print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vocab_size)
+from keras.optimizers import RMSprop
+from utils import batch_generator
 
 
-def batch_generator(text):
-    t = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
-    x = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
-    y = np.zeros((BATCH_SIZE, SEQ_LEN, vocab_size))
-    batch_chars = len(text) / BATCH_SIZE
+def sample_during_training(ep, dict, sample_chars=256, primer_text='And the '):
+    test_model.reset_states()
+    test_model.load_weights('../data/results/char_rnn-%d.h5' % ep)
+    sampled = [dict[c] for c in primer_text]
 
-    for i in range(0, batch_chars - SEQ_LEN - 1, SEQ_LEN):
-
-        x[:] = 0
-        y[:] = 0
-        for batch_idx in range(BATCH_SIZE):
-            start = batch_idx * batch_chars + i
-            for j in range(SEQ_LEN):
-                x[batch_idx, j, t[start + j]] = 1
-                y[batch_idx, j, t[start + j + 1]] = 1
-        yield x, y
+    for c in primer_text:
+        batch = np.zeros((1, 1, vocab_size))
+        batch[0, 0, dict[c]] = 1
+        test_model.predict_on_batch(batch)
+    for i in range(sample_chars):
+        batch = np.zeros((1, 1, vocab_size))
+        batch[0, 0, sampled[-1]] = 1
+        softmax = test_model.predict_on_batch(batch)[0].ravel()
+        sample = np.random.choice(range(vocab_size), p=softmax)
+        sampled.append(sample)
+    print ''.join([idx_to_char[c] for c in sampled])
 
 
 def build_model(infer):
@@ -60,83 +40,86 @@ def build_model(infer):
                    batch_input_shape=(batch_size, seq_len, vocab_size),
                    stateful=True))
 
-    model.add(Dropout(0.2))
+    model.add(Dropout(0.2)) # TODO: Consider changing this to 0 if infer is true
     for l in range(LAYERS - 1):
         model.add(LSTM(LSTM_SIZE, return_sequences=True, stateful=True))
         model.add(Dropout(0.2))
 
     model.add(TimeDistributed(Dense(vocab_size)))
     model.add(Activation('softmax'))
-    rms = RMSprop(clipvalue=5, lr=0.002)
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    rms = RMSprop(clipvalue=5, lr=0.0015)
+    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
     return model
 
+parser = argparse.ArgumentParser(description='Train the char-rnn model')
+parser.add_argument('-r', '--recovery', type=str, default='', help='filepath to model to recover training from')
+args = parser.parse_args()
+path_to_model = args.recovery
 
-print 'Building model.'
+# Logger init
+logging.basicConfig(filename='../data/logs/char-rnn.log', level=logging.INFO)
+
+# Hyperparameters
+SEQ_LEN = 100
+BATCH_SIZE = 130
+LSTM_SIZE = 1024
+LAYERS = 3
+NUM_EPOCHS = 80
+
+# Data loading
+with open('../data/chars', 'rb') as f:
+    minified_data = pickle.load(f)
+
+splitPoint = int(np.ceil(len(minified_data) * 0.95))
+train_data = ''.join(minified_data[:splitPoint])
+test_data = ''.join(minified_data[splitPoint:])
+char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_data))))}
+idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
+vocab_size = len(char_to_idx)
+print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vocab_size)
+
 training_model = build_model(infer=False)
 test_model = build_model(infer=True)
-print '... done.'
-# print training_model.summary()
-
-
-def sample(epoch, train_loss, test_loss, sample_chars=256, primer_text='And the '):
-    test_model.reset_states()
-    test_model.load_weights('../data/results/run12-%d-%f-%f.h5' % (epoch, train_loss, test_loss))
-    sampled = [char_to_idx[c] for c in primer_text]
-
-    for c in primer_text:
-        batch = np.zeros((1, 1, vocab_size))
-        batch[0, 0, char_to_idx[c]] = 1
-        test_model.predict_on_batch(batch)
-
-    for i in range(sample_chars):
-        batch = np.zeros((1, 1, vocab_size))
-        batch[0, 0, sampled[-1]] = 1
-        softmax = test_model.predict_on_batch(batch)[0].ravel()
-        sample = np.random.choice(range(vocab_size), p=softmax)
-        sampled.append(sample)
-
-    print ''.join([idx_to_char[c] for c in sampled])
+print training_model.summary()
 
 starting_epoch = 0
 avg_train_loss = 0
 avg_train_acc = 0
 avg_test_loss = 0
 avg_test_acc = 0
-prev_loss = 5
+prev_loss = 100
 
-recovery = False
-if recovery:
-    starting_epoch = 9
-    avg_train_loss = 1.095104
-    avg_test_loss = 0.891405
-    training_model.load_weights('../data/results/run12-%d-%f-%f.h5' % (starting_epoch, avg_train_loss, avg_test_loss))
+if path_to_model:
+    starting_epoch = int(path_to_model[-4]) # Conventionally take the number before the extension as an epoch to start
+    training_model.load_weights('../data/results/char_rnn-%d.h5' % starting_epoch)
 
-
+print 'Built model, starting training.'
+logging.info('Epochs \tAgv train loss \tAvg test loss \tAvg train acc \tAvg test acc')
 for epoch in range((starting_epoch + 1), NUM_EPOCHS):
-    for i, (x, y) in enumerate(batch_generator(train_data)):
-        if i % 200:
-            training_model.reset_states()
+    t1 = time.time()
+    training_model.reset_states()
+    for i, (x, y) in enumerate(batch_generator(train_data, char_to_idx, BATCH_SIZE, SEQ_LEN, vocab_size)):
         loss, accuracy = training_model.train_on_batch(x, y)
         avg_train_loss += loss
         avg_train_acc += accuracy
     avg_train_loss /= (i + 1)
     avg_train_acc /= (i + 1)
+    t2 = time.time()
+    print "Epoch %i took %f minutes." % ((starting_epoch + 1), ((t2 - t1)/60))
 
-    for i, (x, y) in enumerate(batch_generator(test_data)):
+    for i, (x, y) in enumerate(batch_generator(test_data, char_to_idx, BATCH_SIZE, SEQ_LEN, vocab_size)):
         loss, accuracy = training_model.test_on_batch(x, y)
         avg_test_loss += loss
         avg_test_acc += accuracy
     avg_test_loss /= (i + 1)
     avg_test_acc /= (i + 1)
 
-    training_model.save_weights('../data/results/run12-%d-%f-%f.h5' % (epoch, avg_train_loss, avg_test_loss))
+    training_model.save_weights('../data/results/char_rnn-%d.h5' % epoch)
     print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
-    logging.info('Epoch: %d\nAvg train loss: %f\tAvg test loss: %f\tAvg train acc: %f \tAvg test acc: %f',
-                 epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
-    sample(epoch, avg_train_loss, avg_test_loss)
+    logging.info('%d,\t%f,\t%f,\t%f, \t%f', epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
+    sample_during_training(epoch, char_to_idx)
 
     if (prev_loss - avg_train_loss) < 0.001:
         print 'Warning: Early stopping advised.'
-        logging.warning('Warning: Early stopping advised.')
+        logging.warning('Early stopping advised.')
     prev_loss = avg_train_loss

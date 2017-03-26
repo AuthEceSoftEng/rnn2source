@@ -7,6 +7,7 @@ from jsmin import jsmin
 from linguist.libs.file_blob import FileBlob
 
 
+
 def sample(preds, temperature=0.35):
     # helper function to sample an index from a probability array
     preds = np.asarray(preds).astype('float64')
@@ -15,6 +16,23 @@ def sample(preds, temperature=0.35):
     preds = exp_preds / np.sum(exp_preds)
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
+
+def batch_generator(text, char_to_idx, batch_size, seq_len, vocab_size):
+    t = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
+    x = np.zeros((batch_size, seq_len, vocab_size))
+    y = np.zeros((batch_size, seq_len, vocab_size))
+    batch_chars = len(text) / batch_size
+
+    for i in range(0, batch_chars - seq_len - 1, seq_len):
+
+        x[:] = 0
+        y[:] = 0
+        for batch_idx in range(batch_size):
+            start = batch_idx * batch_chars + i
+            for j in range(seq_len):
+                x[batch_idx, j, t[start + j]] = 1
+                y[batch_idx, j, t[start + j + 1]] = 1
+        yield x, y
 
 
 def jsparser(path):

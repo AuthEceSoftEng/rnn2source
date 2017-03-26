@@ -5,7 +5,7 @@ import logging
 from keras.layers import Input, LSTM, TimeDistributed, Dense, merge, Dropout
 from keras.models import Model
 from keras.optimizers import RMSprop
-from math import ceil
+from keras.utils.visualize_util import plot
 
 # Logger init
 logging.basicConfig(filename='/home/vasilis/Dropbox/My stuff/Thesis/logs/rnn.log', level=logging.INFO)
@@ -50,7 +50,7 @@ with open('../data/chars', 'rb') as f:
 with open('../data/labels', 'rb') as f:
     label_data = pickle.load(f)
 
-splitPoint = int(ceil(len(minified_data) * 0.95))
+splitPoint = int(np.ceil(len(minified_data) * 0.95))
 train_minified_data = ''.join(minified_data[:splitPoint])
 test_minified_data = ''.join(minified_data[splitPoint:])
 train_label_data = ''.join(label_data[:splitPoint])
@@ -80,6 +80,9 @@ label_output = TimeDistributed(Dense(label_size, activation='softmax'), name='la
 model = Model([char_input, label_input], [char_output, label_output])
 rms = RMSprop(lr=0.002, clipvalue=5)
 model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'],  loss_weights=[1., 0.2])
+plot(model, to_file='model.png')
+print model.summary()
+
 model.summary()
 
 starting_epoch = 0
@@ -93,7 +96,19 @@ recovery = False
 if recovery:
     pass
 
+for i, (x1, y1, x2, y2) in enumerate(batch_generator(train_minified_data, train_label_data)):
+    (loss, _, _, accuracy, _) = model.test_on_batch([x1, x2], [y1, y2])
+    avg_test_loss += loss
+    avg_test_acc += accuracy
+avg_test_loss /= (i + 1)
+avg_test_acc /= (i + 1)
+print avg_test_acc
+print avg_test_loss
+
+print 'doneasddoneasddoneasddoneasddoneasddoneasddoneasddoneasd'
+
 for epoch in range(NUM_EPOCHS):
+    model.reset_states()
     for i, (x1, y1, x2, y2) in enumerate(batch_generator(train_minified_data, train_label_data)):
         (loss, loss1, _, accuracy, _) = model.train_on_batch([x1, x2], [y1, y2])
         avg_train_loss += loss
@@ -101,6 +116,7 @@ for epoch in range(NUM_EPOCHS):
     avg_train_loss /= (i + 1)
     avg_train_acc /= (i + 1)
 
+    model.reset_states()
     for i, (x1, y1, x2, y2) in enumerate(batch_generator(test_minified_data, test_label_data)):
         (loss, _, _, accuracy, _) = model.test_on_batch([x1, x2], [y1, y2])
         avg_test_loss += loss
