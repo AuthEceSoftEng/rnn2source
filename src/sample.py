@@ -1,17 +1,15 @@
 import argparse
 import numpy as np
-import random
-import sys
+import pickle
 
-from keras.models import load_model
+from utils import jsparser, sample, build_model
 
-from utils import jsparser, sample
-
+# TODO: Add temperature and file control
 parser = argparse.ArgumentParser(description='Sample a trained model')
 parser.add_argument('filepath', help='filepath to model')
-parser.add_argument('-s', '--seed', help='seed input', type=str, default=[])
+parser.add_argument('-s', '--seed', help='seed input', type=str, default="export function getAttachContext(spec:document,update:'mount: data:yield:any'){destructuring=function(rawDocs){buffer._onAssignment();return")
 parser.add_argument('-t', '--temperature', help='set sampling temperature', type=float, default=0.2)
-parser.add_argument('-l', '--length', help='set output length', type=int, default=100)
+parser.add_argument('-l', '--length', help='set output length', type=int, default=1000)
 args = parser.parse_args()
 
 path = args.filepath
@@ -19,45 +17,38 @@ seed = args.seed
 temperature = args.temperature
 length = args.length
 
-model = load_model(path)
-model.summary()
-print model.get_weights()[0]
-model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+# Data loading
+with open('../data/chars', 'rb') as f:
+    minified_data = pickle.load(f)
 
-# data I/O
-data = jsparser('/home/vasilis/Documents/projects')
-chars = list(set(data))
-data_size, vocab_size = len(data), len(chars)
-print 'data has %d characters, %d unique.' % (data_size, vocab_size)
-char_to_ix = {ch: i for i, ch in enumerate(chars)}
-ix_to_char = {i: ch for i, ch in enumerate(chars)}
-seq_length = len(seed)
+splitPoint = int(np.ceil(len(minified_data) * 0.95))
+train_data = ''.join(minified_data[:splitPoint])
+test_data = ''.join(minified_data[splitPoint:])
+char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_data))))}
+idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
+vocab_size = len(char_to_idx)
 
-if not seed:
-    start_index = random.randint(0, data_size - seq_length - 1)
-    generated = ''
-    sentence = data[start_index: start_index + seq_length]
-    generated += sentence
-    print('no seed given')
-    print('----- Generating with seed: "' + sentence + '"')
-    sys.stdout.write(generated)
-else:
-    print('----- Generating with seed: "' + seed + '"')
-    sentence = seed
-    generated = ''
-    generated += seed
+print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vocab_size)
+# print seed
+# print char_to_idx
+# print idx_to_char
+# print model.get_weights()[0]
+model = build_model(True, 1024, 1, 1, 3, vocab_size)
+model.load_weights(path)
+model.reset_states()
 
-for i in range(length):
-    x = np.zeros((1, seq_length, len(chars)))
-    for t, char in enumerate(sentence):
-        x[0, t, char_to_ix[char]] = 1.
+sampled = [char_to_idx[c] for c in seed]
 
-    preds = model.predict(x, verbose=0)[0]
-    next_index = sample(preds)
-    next_char = ix_to_char[next_index]
-
-    generated += next_char
-    sentence = sentence[1:] + next_char
-
-    sys.stdout.write(next_char)
-    sys.stdout.flush()
+for c in seed:
+    batch = np.zeros((1, 1, vocab_size))
+    batch[0, 0, char_to_idx[c]] = 1
+    model.predict_on_batch(batch)
+for i in range(5):
+    batch = np.zeros((1, 1, vocab_size))
+    batch[0, 0, sampled[-1]] = 1
+    softmax = model.predict_on_batch(batch)[0].ravel() # TODO: Check what ravel is
+    sample = np.random.choice(range(vocab_size), p=softmax)
+    sampled.append(sample)
+print ''.join([idx_to_char[c] for c in sampled])
+# for c in sampled:
+#     print c

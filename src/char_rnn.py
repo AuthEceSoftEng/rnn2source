@@ -4,10 +4,7 @@ import logging
 import argparse
 import time
 
-from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM
-from keras.models import Sequential
-from keras.optimizers import RMSprop
-from utils import batch_generator
+from utils import batch_generator, build_model
 
 
 def sample_during_training(ep, dict, sample_chars=256, primer_text='And the '):
@@ -27,29 +24,6 @@ def sample_during_training(ep, dict, sample_chars=256, primer_text='And the '):
         sampled.append(sample)
     print ''.join([idx_to_char[c] for c in sampled])
 
-
-def build_model(infer):
-    if infer:
-        batch_size = seq_len = 1
-    else:
-        batch_size = BATCH_SIZE
-        seq_len = SEQ_LEN
-    model = Sequential()
-    model.add(LSTM(LSTM_SIZE,
-                   return_sequences=True,
-                   batch_input_shape=(batch_size, seq_len, vocab_size),
-                   stateful=True))
-
-    model.add(Dropout(0.2)) # TODO: Consider changing this to 0 if infer is true
-    for l in range(LAYERS - 1):
-        model.add(LSTM(LSTM_SIZE, return_sequences=True, stateful=True))
-        model.add(Dropout(0.2))
-
-    model.add(TimeDistributed(Dense(vocab_size)))
-    model.add(Activation('softmax'))
-    rms = RMSprop(clipvalue=5, lr=0.0015)
-    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
-    return model
 
 parser = argparse.ArgumentParser(description='Train the char-rnn model')
 parser.add_argument('-r', '--recovery', type=str, default='', help='filepath to model to recover training from')
@@ -78,8 +52,8 @@ idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
 vocab_size = len(char_to_idx)
 print 'Working on %d characters (%d unique).' % (len(train_data + test_data), vocab_size)
 
-training_model = build_model(infer=False)
-test_model = build_model(infer=True)
+training_model = build_model(False, LSTM_SIZE, BATCH_SIZE, SEQ_LEN, LAYERS, vocab_size)
+test_model = build_model(True, LSTM_SIZE, BATCH_SIZE, SEQ_LEN, LAYERS, vocab_size)
 print training_model.summary()
 
 starting_epoch = 0
@@ -105,7 +79,7 @@ for epoch in range((starting_epoch + 1), NUM_EPOCHS):
     avg_train_loss /= (i + 1)
     avg_train_acc /= (i + 1)
     t2 = time.time()
-    print "Epoch %i took %f minutes." % ((starting_epoch + 1), ((t2 - t1)/60))
+    print "Epoch %i took %f minutes." % ((epoch), ((t2 - t1)/60))
 
     for i, (x, y) in enumerate(batch_generator(test_data, char_to_idx, BATCH_SIZE, SEQ_LEN, vocab_size)):
         loss, accuracy = training_model.test_on_batch(x, y)

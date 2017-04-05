@@ -6,7 +6,30 @@ from pygments.lexers.javascript import JavascriptLexer
 from jsmin import jsmin
 from linguist.libs.file_blob import FileBlob
 
+from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM
+from keras.models import Sequential
+from keras.optimizers import RMSprop
 
+
+def build_model(infer, lstm_size, batch_size, seq_len, layers, vocab):
+    if infer:
+        batch_size = seq_len = 1
+    model = Sequential()
+    model.add(LSTM(lstm_size,
+                   return_sequences=True,
+                   batch_input_shape=(batch_size, seq_len, vocab),
+                   stateful=True))
+
+    model.add(Dropout(0.2)) # TODO: Consider changing this to 0 if infer is true
+    for l in range(layers - 1):
+        model.add(LSTM(lstm_size, return_sequences=True, stateful=True))
+        model.add(Dropout(0.2))
+
+    model.add(TimeDistributed(Dense(vocab)))
+    model.add(Activation('softmax'))
+    rms = RMSprop(clipvalue=5, lr=0.0015)
+    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
+    return model
 
 def sample(preds, temperature=0.35):
     # helper function to sample an index from a probability array
