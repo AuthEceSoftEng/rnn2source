@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pickle
 
-from utils import jsparser, sample, build_model
+from utils import build_model
 
 # TODO: Add temperature and file control
 parser = argparse.ArgumentParser(description='Sample a trained model')
@@ -43,12 +43,13 @@ for c in seed:
     batch = np.zeros((1, 1, vocab_size))
     batch[0, 0, char_to_idx[c]] = 1
     model.predict_on_batch(batch)
-for i in range(5):
+for i in range(length):
     batch = np.zeros((1, 1, vocab_size))
     batch[0, 0, sampled[-1]] = 1
     softmax = model.predict_on_batch(batch)[0].ravel() # TODO: Check what ravel is
     sample = np.random.choice(range(vocab_size), p=softmax)
     sampled.append(sample)
 print ''.join([idx_to_char[c] for c in sampled])
+#that's something else
 # for c in sampled:
 #     print c

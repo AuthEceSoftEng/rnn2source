@@ -6,8 +6,8 @@ from pygments.lexers.javascript import JavascriptLexer
 from jsmin import jsmin
 from linguist.libs.file_blob import FileBlob
 
-from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM
-from keras.models import Sequential
+from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM, Input, merge
+from keras.models import Sequential, Model
 from keras.optimizers import RMSprop
 
 
@@ -31,6 +31,28 @@ def build_model(infer, lstm_size, batch_size, seq_len, layers, vocab):
     model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
     return model
 
+
+def build_labeled_model(lstm_size, batch_size, seq_len, char_vocab_size, lbl_vocab_size):
+    char_input = Input(batch_shape=(batch_size, seq_len, char_vocab_size), name='char_input')
+    label_input = Input(batch_shape=(batch_size, seq_len, lbl_vocab_size), name='label_input')
+    x = merge([char_input, label_input], mode='concat', concat_axis=-1)
+
+    lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(x)
+    lstm_layer = Dropout(0.2)(lstm_layer)
+    lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(lstm_layer)
+    lstm_layer = Dropout(0.2)(lstm_layer)
+    lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(lstm_layer)
+    lstm_layer = Dropout(0.2)(lstm_layer)
+
+    char_output = TimeDistributed(Dense(char_vocab_size, activation='softmax'), name='char_output')(lstm_layer)
+    label_output = TimeDistributed(Dense(lbl_vocab_size, activation='softmax'), name='label_output')(lstm_layer)
+
+    model = Model([char_input, label_input], [char_output, label_output])
+    rms = RMSprop(lr=0.001, clipvalue=5)
+    model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'], loss_weights=[1., 0.2])
+    return model
+
+
 def sample(preds, temperature=0.35):
     # helper function to sample an index from a probability array
     preds = np.asarray(preds).astype('float64')
@@ -39,6 +61,7 @@ def sample(preds, temperature=0.35):
     preds = exp_preds / np.sum(exp_preds)
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
+
 
 def batch_generator(text, char_to_idx, batch_size, seq_len, vocab_size):
     t = np.asarray([char_to_idx[c] for c in text], dtype=np.int32)
@@ -56,6 +79,33 @@ def batch_generator(text, char_to_idx, batch_size, seq_len, vocab_size):
                 x[batch_idx, j, t[start + j]] = 1
                 y[batch_idx, j, t[start + j + 1]] = 1
         yield x, y
+
+
+def labeled_batch_generator(data, labels, lbl_to_idx, char_to_idx, batch_size, seq_len, vocab_size, label_size):
+    t1 = np.asarray([char_to_idx[c] for c in data], dtype=np.int32)
+    t2 = np.asarray([lbl_to_idx[l] for l in labels], dtype=np.int32)
+
+    x1 = np.zeros((batch_size, seq_len, vocab_size))
+    y1 = np.zeros((batch_size, seq_len, vocab_size))
+    x2 = np.zeros((batch_size, seq_len, label_size))
+    y2 = np.zeros((batch_size, seq_len, label_size))
+
+    batch_chars = len(data) / batch_size
+
+    for i in range(0, batch_chars - seq_len - 1, seq_len):
+        x1[:] = 0
+        y1[:] = 0
+        x2[:] = 0
+        y2[:] = 0
+
+        for batch_idx in range(batch_size):
+            start = batch_idx * batch_chars + i
+            for j in range(seq_len):
+                x1[batch_idx, j, t1[start + j]] = 1
+                y1[batch_idx, j, t1[start + j + 1]] = 1
+                x2[batch_idx, j, t2[start + j]] = 1
+                y2[batch_idx, j, t2[start + j + 1]] = 1
+        yield x1, y1, x2, y2
 
 
 def jsparser(path):

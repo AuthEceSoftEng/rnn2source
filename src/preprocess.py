@@ -9,7 +9,7 @@ from pygments.lexers.javascript import JavascriptLexer
 from pygments.token import Token
 
 
-path = '/home/vasilis/Documents/projects'   # TODO: Use argparse to get that
+path = '/home/vasilis/Desktop/npm-untar'   # TODO: Use argparse to get that
 # path = '/home/vasilis/Documents/projects/mbostock-d3-b516d77/src/geo'
 print "Reading data..."
 
@@ -45,7 +45,7 @@ for root, dirs, files in os.walk(path, topdown=True):
                 chars = '\x01' + ''.join(chars) + '\x02'
 
                 if len(chars) != len(labels):
-                    print 'wtf', len(chars), len(labels)
+                    print 'wtf', len(chars), len(labels) #TODO: Clean up
                     print os.path.join(root, name)
                 if chars not in minified_data:
                     minified_data.append(chars)
@@ -61,16 +61,16 @@ for index in index_shuf:
     label_data_shuf.append(label_data[index])
 
 # Save files
-with open('../data/chars_shuf', 'wb') as f:
+with open('../data/npm_chars_shuf', 'wb') as f:
     pickle.dump(minified_data_shuf, f)
 
-with open('../data/labels_shuf', 'wb') as f:
+with open('../data/npm_labels_shuf', 'wb') as f:
     pickle.dump(label_data_shuf, f)
 
-with open('../data/chars', 'wb') as f:
+with open('../data/npm_chars', 'wb') as f:
     pickle.dump(minified_data, f)
 
-with open('../data/labels', 'wb') as f:
+with open('../data/npm_labels', 'wb') as f:
     pickle.dump(label_data, f)
 
 minified_data = ''.join(minified_data)
