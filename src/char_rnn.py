@@ -10,7 +10,7 @@ from utils import batch_generator, build_model
 # TODO: Delete sampling during training entirely
 def sample_during_training(ep, dict, sample_chars=256, primer_text='And the '):
     test_model.reset_states()
-    test_model.load_weights('../data/results/char_rnn-%d.h5' % ep)
+    test_model.load_weights('../data/results/node_char_rnn-%d.h5' % ep)
     sampled = [dict[c] for c in primer_text]
 
     for c in primer_text:
@@ -32,20 +32,20 @@ args = parser.parse_args()
 path_to_model = args.recovery
 
 # Logger init
-logging.basicConfig(filename='../data/logs/char-rnn.log', level=logging.INFO)
+logging.basicConfig(filename='../data/logs/node_char-rnn.log', level=logging.INFO)
 
 # Hyperparameters
 SEQ_LEN = 100
 BATCH_SIZE = 130
-LSTM_SIZE = 1024
+LSTM_SIZE = 512
 LAYERS = 3
-NUM_EPOCHS = 80
+NUM_EPOCHS = 100
 
 # Data loading
-with open('../data/chars', 'rb') as f:
+with open('../data/npm_chars_shuf', 'rb') as f:
     minified_data = pickle.load(f)
 
-splitPoint = int(np.ceil(len(minified_data) * 0.95))
+splitPoint = int(np.ceil(len(minified_data) * 0.90))
 train_data = ''.join(minified_data[:splitPoint])
 test_data = ''.join(minified_data[splitPoint:])
 char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_data))))}
@@ -90,7 +90,7 @@ for epoch in range((starting_epoch + 1), NUM_EPOCHS):
     avg_test_loss /= (i + 1)
     avg_test_acc /= (i + 1)
 
-    training_model.save_weights('../data/results/char_rnn-%d.h5' % epoch)
+    training_model.save_weights('../data/results/node_char_rnn-%d.h5' % epoch)
     print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
     logging.info('%d,\t%f,\t%f,\t%f, \t%f', epoch, avg_train_loss, avg_test_loss, avg_train_acc, avg_test_acc)
     sample_during_training(epoch, char_to_idx)

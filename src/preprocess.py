@@ -9,7 +9,7 @@ from pygments.lexers.javascript import JavascriptLexer
 from pygments.token import Token
 
 
-path = '/home/vasilis/Desktop/npm-untar'   # TODO: Use argparse to get that
+path = '/home/vasilis/PycharmProjects/rnn2source/data/TestProject'   # TODO: Use argparse to get that
 # path = '/home/vasilis/Documents/projects/mbostock-d3-b516d77/src/geo'
 print "Reading data..."
 
@@ -61,16 +61,16 @@ for index in index_shuf:
     label_data_shuf.append(label_data[index])
 
 # Save files
-with open('../data/npm_chars_shuf', 'wb') as f:
-    pickle.dump(minified_data_shuf, f)
+# with open('../data/npm_chars_shuf', 'wb') as f:
+#     pickle.dump(minified_data_shuf, f)
+#
+# with open('../data/npm_labels_shuf', 'wb') as f:
+#     pickle.dump(label_data_shuf, f)
 
-with open('../data/npm_labels_shuf', 'wb') as f:
-    pickle.dump(label_data_shuf, f)
-
-with open('../data/npm_chars', 'wb') as f:
+with open('../data/github_test_chars', 'wb') as f:
     pickle.dump(minified_data, f)
 
-with open('../data/npm_labels', 'wb') as f:
+with open('../data/github_test_labels', 'wb') as f:
     pickle.dump(label_data, f)
 
 minified_data = ''.join(minified_data)

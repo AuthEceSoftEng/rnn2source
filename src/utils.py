@@ -2,7 +2,6 @@ import numpy as np
 import os
 import time
 from pygments.lexers.javascript import JavascriptLexer
-
 from jsmin import jsmin
 from linguist.libs.file_blob import FileBlob
 
@@ -20,14 +19,14 @@ def build_model(infer, lstm_size, batch_size, seq_len, layers, vocab):
                    batch_input_shape=(batch_size, seq_len, vocab),
                    stateful=True))
 
-    model.add(Dropout(0.2)) # TODO: Consider changing this to 0 if infer is true
+    model.add(Dropout(0.4)) # TODO: Consider changing this to 0 if infer is true
     for l in range(layers - 1):
         model.add(LSTM(lstm_size, return_sequences=True, stateful=True))
-        model.add(Dropout(0.2))
+        model.add(Dropout(0.4))
 
     model.add(TimeDistributed(Dense(vocab)))
     model.add(Activation('softmax'))
-    rms = RMSprop(clipvalue=5, lr=0.0015)
+    rms = RMSprop(clipvalue=5, lr=0.002)
     model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'])
     return model
 
@@ -38,11 +37,11 @@ def build_labeled_model(lstm_size, batch_size, seq_len, char_vocab_size, lbl_voc
     x = merge([char_input, label_input], mode='concat', concat_axis=-1)
 
     lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(x)
-    lstm_layer = Dropout(0.2)(lstm_layer)
+    lstm_layer = Dropout(0.4)(lstm_layer)
     lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(lstm_layer)
-    lstm_layer = Dropout(0.2)(lstm_layer)
+    lstm_layer = Dropout(0.4)(lstm_layer)
     lstm_layer = LSTM(lstm_size, return_sequences=True, stateful=True)(lstm_layer)
-    lstm_layer = Dropout(0.2)(lstm_layer)
+    lstm_layer = Dropout(0.4)(lstm_layer)
 
     char_output = TimeDistributed(Dense(char_vocab_size, activation='softmax'), name='char_output')(lstm_layer)
     label_output = TimeDistributed(Dense(lbl_vocab_size, activation='softmax'), name='label_output')(lstm_layer)

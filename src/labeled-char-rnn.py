@@ -15,22 +15,22 @@ args = parser.parse_args()
 path_to_model = args.recovery
 
 # Logger init
-logging.basicConfig(filename='../data/logs/labeled-char-rnn.log', level=logging.INFO)
+logging.basicConfig(filename='../data/logs/node_labeled-char-rnn.log', level=logging.INFO)
 
 # Hyperparameters
 SEQ_LEN = 100
-BATCH_SIZE = 100
-LSTM_SIZE = 1024
+BATCH_SIZE = 200
+LSTM_SIZE = 512
 LAYERS = 3
 NUM_EPOCHS = 80
 
 # Data loading
-with open('../data/chars', 'rb') as f:
+with open('../data/npm_chars', 'rb') as f:
     minified_data = pickle.load(f)
-with open('../data/labels', 'rb') as f:
+with open('../data/npm_labels', 'rb') as f:
     label_data = pickle.load(f)
 
-splitPoint = int(np.ceil(len(minified_data) * 0.95))
+splitPoint = int(np.ceil(len(minified_data) * 0.85))
 train_minified_data = ''.join(minified_data[:splitPoint])
 test_minified_data = ''.join(minified_data[splitPoint:])
 train_label_data = ''.join(label_data[:splitPoint])
@@ -50,17 +50,17 @@ label_input = Input(batch_shape=(BATCH_SIZE, SEQ_LEN, label_size), name='label_i
 x = merge([char_input, label_input], mode='concat', concat_axis=-1)
 
 lstm_layer = LSTM(LSTM_SIZE, return_sequences=True, stateful=True)(x)
-lstm_layer = Dropout(0.2)(lstm_layer)
+lstm_layer = Dropout(0.3)(lstm_layer)
 lstm_layer = LSTM(LSTM_SIZE, return_sequences=True, stateful=True)(lstm_layer)
-lstm_layer = Dropout(0.2)(lstm_layer)
+lstm_layer = Dropout(0.3)(lstm_layer)
 lstm_layer = LSTM(LSTM_SIZE, return_sequences=True, stateful=True)(lstm_layer)
-lstm_layer = Dropout(0.2)(lstm_layer)
+lstm_layer = Dropout(0.3)(lstm_layer)
 
 char_output = TimeDistributed(Dense(vocab_size, activation='softmax'), name='char_output')(lstm_layer)
 label_output = TimeDistributed(Dense(label_size, activation='softmax'), name='label_output')(lstm_layer)
 
 model = Model([char_input, label_input], [char_output, label_output])
-rms = RMSprop(lr=0.001, clipvalue=5)
+rms = RMSprop(lr=0.002, clipvalue=5)
 model.compile(loss='categorical_crossentropy', optimizer=rms, metrics=['accuracy'],  loss_weights=[1., 0.2])
 print model.summary()
 
@@ -80,7 +80,8 @@ prev_loss = 100
 
 if path_to_model:
     starting_epoch = int(path_to_model[-4]) # Conventionally take the number before the extension as an epoch to start
-    model.load_weights('../data/results/labeled_char_rnn-%d.h5' % starting_epoch) # This is stupid
+    starting_epoch += 30
+    model.load_weights('../data/results/node_labeled_char_rnn-%d.h5' % starting_epoch) # This is stupid
 
 # for i, (x1, y1, x2, y2) in enumerate(labeled_batch_generator(train_minified_data, train_label_data)):
 #     (loss, _, _, accuracy, _) = model.test_on_batch([x1, x2], [y1, y2])
@@ -130,7 +131,7 @@ for epoch in range((starting_epoch + 1), NUM_EPOCHS):
     avg_test_acc1 /= (i + 1)
     avg_test_acc2 /= (i + 1)
 
-    model.save_weights('../data/results/labeled_char_rnn-%d.h5' % epoch)
+    model.save_weights('../data/results/node_labeled_char_rnn-%d.h5' % epoch)
     print 'Epoch: %d.\tAverage train loss is: %f\tAverage test loss is: %f.' % (epoch, avg_train_loss, avg_test_loss)
     logging.info('%d,\t%f,\t%f,\t%f,\t%f\t%f,\t%f,\t%f,\t%f,\t%f,\t%f', epoch, avg_train_loss, avg_train_loss1,
                  avg_train_loss2, avg_test_loss, avg_test_loss1, avg_test_loss2, avg_train_acc1, avg_test_acc1,
