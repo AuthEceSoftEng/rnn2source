@@ -1,12 +1,13 @@
 import argparse
 import numpy as np
 import pickle
-import jsbeautifier
 import time
 
-from utils import build_labeled_model
+import jsbeautifier
 from pygments.lexers.javascript import JavascriptLexer
 from pygments.token import Token
+
+from utils import build_labeled_model, temp
 
 typoes = {Token.Literal.String.Regex: 'r', Token.Keyword: 'k', Token.Literal.String: 's',
           Token.Punctuation: 'p', Token.Literal.Number: 'n', Token.Operator: 'o', Token.Text: 'p',
@@ -17,7 +18,7 @@ point = JavascriptLexer()
 parser = argparse.ArgumentParser(description='Sample a trained model with labels')
 parser.add_argument('filepath', help='filepath to model')
 parser.add_argument('-s', '--seed', help='seed input', type=str, default='')
-parser.add_argument('-t', '--temperature', help='set sampling temperature', type=float, default=0.2)
+parser.add_argument('-t', '--temperature', help='set sampling temperature', type=float, default=0.85)
 parser.add_argument('-l', '--length', help='set output length', type=int, default=1000)
 parser.add_argument('-p', '--project', help='load the test project', default='../data/github_test_chars')
 args = parser.parse_args()
@@ -53,7 +54,6 @@ lbl_to_idx = {lb: i for (i, lb) in enumerate(sorted(list(set(train_label_data + 
 idx_to_lbl = {i: lb for (lb, i) in lbl_to_idx.items()}
 label_size = len(lbl_to_idx)
 
-print lbl_to_idx
 with open('../data/github_test_chars', 'r') as f:
     project_seed = pickle.load(f)
 with open('../data/github_test_labels', 'r') as f:
@@ -65,7 +65,8 @@ initial_seed_labels = ''.join(project_seed_labels)
 missingKeys = set(initial_seed) - set(char_to_idx)
 
 print 'Working on %d characters (%d unique).' % (len(train_minified_data + test_minified_data), vocab_size)
-model = build_labeled_model(lstm_size=1024, batch_size=1, seq_len=1, char_vocab_size=vocab_size, lbl_vocab_size=label_size)
+model = build_labeled_model(lstm_size=1024, batch_size=1, seq_len=1, char_vocab_size=vocab_size,
+                            lbl_vocab_size=label_size)
 model.load_weights(path)
 model.reset_states()
 
@@ -86,7 +87,6 @@ for c, l in zip([char_to_idx[c] for c in initial_seed], [lbl_to_idx[l] for l in 
     model.predict_on_batch([char_in, label_in])
 print("--- %s seconds ---" % (time.time() - start_time))
 
-
 sampled = [char_to_idx[c] for c in seed]
 sampled_labels = [lbl_to_idx[l] for l in labels]
 
@@ -97,8 +97,6 @@ for c, l in zip(seed, labels):
     label_in[0, 0, lbl_to_idx[l]] = 1
     model.predict_on_batch([char_in, label_in])
 
-print 'are we here yet'
-
 for i in range(numFilesToCreate):
     sampled.append(0)
     sampled_labels.append(5)
@@ -108,13 +106,13 @@ for i in range(numFilesToCreate):
         label_in = np.zeros((1, 1, label_size))
         label_in[0, 0, sampled_labels[-1]] = 1
         softmax_char, softmax_label = model.predict_on_batch([char_in, label_in])
-        sample = np.random.choice(range(vocab_size), p=softmax_char.ravel())
-        sample_label = np.random.choice(range(label_size), p=softmax_label.ravel())
+        sample = np.random.choice(range(vocab_size), p=temp(softmax_char.ravel(), temperature))
+        sample_label = np.random.choice(range(label_size), p=temp(softmax_label.ravel(), temperature))
         sampled.append(sample)
         sampled_labels.append(sample_label)
         if sample == 1:
             text = ''.join([idx_to_char[c] for c in sampled[1:-1]])
-            with open("../data/sampledCode/githubLabeled/githubsampled%i.js" % i, "w") as produced_file:
+            with open("../data/sampledCode/githubsampled%i.js" % i, "w") as produced_file:
                 produced_file.write(jsbeautifier.beautify(text, opts))
                 print 'printed file'
             sampled[:] = []
@@ -127,7 +125,7 @@ for i in range(numFilesToCreate):
             label_in[0, 0, 5] = 1
             model.predict_on_batch([char_in, label_in])
             text = ''.join([idx_to_char[c] for c in sampled[1:]])
-            with open("../data/sampledCode/githubLabeled/githubsampled%i.js" % i, "w") as produced_file:
+            with open("../data/sampledCode/githubsampled%i.js" % i, "w") as produced_file:
                 produced_file.write(jsbeautifier.beautify(text, opts))
             print 'that\'s too much - printed file nonetheless'
             sampled[:] = []

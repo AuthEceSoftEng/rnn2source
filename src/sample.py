@@ -2,15 +2,15 @@ import argparse
 import numpy as np
 import pickle
 import time
+
 import jsbeautifier
 
-from utils import build_model
+from utils import build_model, temp
 
-# TODO: Add temperature and file control
 parser = argparse.ArgumentParser(description='Sample a trained model')
 parser.add_argument('filepath', help='filepath to model')
 parser.add_argument('-s', '--seed', help='seed input', type=str, default="")
-parser.add_argument('-t', '--temperature', help='set sampling temperature', type=float, default=0.2)
+parser.add_argument('-t', '--temperature', help='set sampling temperature', type=float, default=0.85)
 parser.add_argument('-l', '--length', help='set output length', type=int, default=10000)
 parser.add_argument('-p', '--project', help='load the test project', default='../data/github_test_chars')
 args = parser.parse_args()
@@ -36,7 +36,6 @@ char_to_idx = {ch: i for (i, ch) in enumerate(sorted(list(set(train_data + test_
 idx_to_char = {i: ch for (ch, i) in char_to_idx.items()}
 vocab_size = len(char_to_idx)
 
-print char_to_idx
 with open('../data/github_test_chars', 'r') as f:
     project_seed = pickle.load(f)
 
@@ -67,12 +66,12 @@ for i in range(numFilesToCreate):
     while True:
         batch = np.zeros((1, 1, vocab_size))
         batch[0, 0, sampled[-1]] = 1
-        softmax = model.predict_on_batch(batch)[0].ravel() # TODO: Check what ravel is
-        sample = np.random.choice(range(vocab_size), p=softmax)
+        softmax = model.predict_on_batch(batch)[0].ravel()
+        sample = np.random.choice(range(vocab_size), p=temp(softmax, temperature))
         sampled.append(sample)
         if sample == 1:
             text = ''.join([idx_to_char[c] for c in sampled[1:-1]])
-            with open("../data/sampledCode/githubsampled%i.js" % i, "w") as produced_file:
+            with open("../data/sampledCode/temptest%i.js" % i, "w") as produced_file:
                 produced_file.write(jsbeautifier.beautify(text, opts))
                 print 'printed file'
             sampled[:] = []
@@ -82,7 +81,7 @@ for i in range(numFilesToCreate):
             batch[0, 0, 1] = 1
             model.predict_on_batch(batch)
             text = ''.join([idx_to_char[c] for c in sampled[1:]])
-            with open("../data/sampledCode/githubsampled%i.js" % i, "w") as produced_file:
+            with open("../data/sampledCode/temptest%i.js" % i, "w") as produced_file:
                 produced_file.write(jsbeautifier.beautify(text, opts))
             print 'that\'s too much - printed file nonetheless'
             sampled[:] = []

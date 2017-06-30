@@ -1,13 +1,13 @@
 import numpy as np
 import os
 import time
-from pygments.lexers.javascript import JavascriptLexer
-from jsmin import jsmin
-from linguist.libs.file_blob import FileBlob
 
+from jsmin import jsmin
 from keras.layers import Activation, Dropout, TimeDistributed, Dense, LSTM, Input, merge
 from keras.models import Sequential, Model
 from keras.optimizers import RMSprop
+from linguist.libs.file_blob import FileBlob
+from pygments.lexers.javascript import JavascriptLexer
 
 
 def build_model(infer, lstm_size, batch_size, seq_len, layers, vocab):
@@ -19,7 +19,7 @@ def build_model(infer, lstm_size, batch_size, seq_len, layers, vocab):
                    batch_input_shape=(batch_size, seq_len, vocab),
                    stateful=True))
 
-    model.add(Dropout(0.4)) # TODO: Consider changing this to 0 if infer is true
+    model.add(Dropout(0.4))  # TODO: Consider changing this to 0 if infer is true
     for l in range(layers - 1):
         model.add(LSTM(lstm_size, return_sequences=True, stateful=True))
         model.add(Dropout(0.4))
@@ -143,3 +143,9 @@ def jsparser(path):
     print 'data has %d characters, %d unique.' % (data_size, vocab_size)
 
     return minified_data
+
+
+def temp(softmax, temp):
+    softmax = np.log(softmax) / temp
+    softmaxT = np.exp(softmax) / np.sum(np.exp(softmax))
+    return softmaxT

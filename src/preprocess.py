@@ -8,8 +8,7 @@ from linguist.libs.file_blob import FileBlob
 from pygments.lexers.javascript import JavascriptLexer
 from pygments.token import Token
 
-
-path = '/home/vasilis/PycharmProjects/rnn2source/data/TestProject'   # TODO: Use argparse to get that
+path = '/home/vasilis/Desktop/lodash-master'  # TODO: Use argparse to get that
 # path = '/home/vasilis/Documents/projects/mbostock-d3-b516d77/src/geo'
 print "Reading data..."
 
@@ -41,11 +40,11 @@ for root, dirs, files in os.walk(path, topdown=True):
                         tag = typoes.get(typo.split()[-2], 'e')
                     labels.extend(tag for i in range(len(seq)))
 
-                labels = 'p' + ''.join(labels) + 'p'        # Add start/end special characters
+                labels = 'p' + ''.join(labels) + 'p'  # Add start/end special characters
                 chars = '\x01' + ''.join(chars) + '\x02'
 
                 if len(chars) != len(labels):
-                    print 'wtf', len(chars), len(labels) #TODO: Clean up
+                    print 'wtf', len(chars), len(labels)  # TODO: Clean up
                     print os.path.join(root, name)
                 if chars not in minified_data:
                     minified_data.append(chars)
@@ -61,24 +60,22 @@ for index in index_shuf:
     label_data_shuf.append(label_data[index])
 
 # Save files
-# with open('../data/npm_chars_shuf', 'wb') as f:
-#     pickle.dump(minified_data_shuf, f)
-#
-# with open('../data/npm_labels_shuf', 'wb') as f:
-#     pickle.dump(label_data_shuf, f)
+with open('../data/npm_chars_shuf', 'wb') as f:
+    pickle.dump(minified_data_shuf, f)
 
-with open('../data/github_test_chars', 'wb') as f:
+with open('../data/npm_labels_shuf', 'wb') as f:
+    pickle.dump(label_data_shuf, f)
+
+with open('../data/npm_test_chars', 'wb') as f:
     pickle.dump(minified_data, f)
 
-with open('../data/github_test_labels', 'wb') as f:
+with open('../data/npm_test_labels', 'wb') as f:
     pickle.dump(label_data, f)
 
 minified_data = ''.join(minified_data)
 label_data = ''.join(label_data)
 minified_data_shuf = ''.join(minified_data_shuf)
 label_data_shuf = ''.join(label_data_shuf)
-
-print len(minified_data), len(label_data)
 
 t2 = time.time()
 chars = sorted(list(set(minified_data)))
