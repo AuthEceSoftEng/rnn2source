@@ -6,5 +6,5 @@ Keras==1.1.0
 linguist==0.1.1
 numpy==1.22.0
 Pygments==2.7.4
-scipy==0.17.1
+scipy==1.10.0
 Theano==0.8.2
